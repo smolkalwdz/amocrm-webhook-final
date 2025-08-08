@@ -81,6 +81,16 @@ module.exports = async (req, res) => {
         console.log(`🔍 Обрабатываем сделку ${lead.id}:`, lead.name);
         console.log(`📋 Все поля сделки ${lead.id}:`, customFields.map(f => `${f.name}: ${f.values[0]?.value}`));
         
+        // Ищем поле с датой брони
+        const dateField = customFields.find(f => 
+          f.name.toLowerCase().includes('дата') || 
+          f.name.toLowerCase().includes('брони') ||
+          f.name.toLowerCase().includes('время')
+        );
+        if (dateField) {
+          console.log(`🎯 Найдено поле с датой: "${dateField.name}" = ${dateField.values[0]?.value}`);
+        }
+        
         const getFieldValue = (fieldName) => {
           const field = customFields.find(f => f.name === fieldName);
           const value = field ? field.values[0].value : '';
@@ -154,6 +164,9 @@ module.exports = async (req, res) => {
         console.log(`🔍 Сделка: ${deal.name} - ${deal.bookingDate} (сегодня: ${todayString})`);
         return true; // Показываем все сделки
       });
+
+    console.log(`✅ Обработано ${deals.length} сделок (показываем все для тестирования)`);
+    console.log(`📊 Первые 5 сделок:`, deals.slice(0, 5).map(d => `${d.name} (${d.bookingDate})`));
 
     console.log(`✅ Обработано ${deals.length} сделок на сегодня (${todayString})`);
 
