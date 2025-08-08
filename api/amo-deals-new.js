@@ -50,8 +50,8 @@ module.exports = async (req, res) => {
     }
     console.log(`🎯 Используем pipeline_id: ${pipelineId} и status_id: ${statusId} для филиала ${branch}`);
 
-    // Формируем URL для запроса с фильтром по статусу "сегодня"
-    const apiUrl = `https://${AMO_SUBDOMAIN}.amocrm.ru/api/v4/leads?pipeline_id=${pipelineId}&status[]=${statusId}`;
+    // Формируем URL для запроса - ВРЕМЕННО без фильтра по статусу для отладки
+    const apiUrl = `https://${AMO_SUBDOMAIN}.amocrm.ru/api/v4/leads?pipeline_id=${pipelineId}`;
     console.log(`🌐 Запрос к AmoCRM: ${apiUrl}`);
 
     // Получаем сделки из AmoCRM
@@ -81,8 +81,14 @@ module.exports = async (req, res) => {
     const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD
     console.log(`📅 Сегодняшняя дата: ${todayString}`);
 
-    // Преобразуем сделки в нужный формат и фильтруем по дате
+    // Преобразуем сделки в нужный формат и фильтруем по статусу и дате
     const deals = leads
+      .filter(lead => {
+        // Фильтруем только сделки в статусе "сегодня"
+        const isTodayStatus = lead.status_id.toString() === statusId;
+        console.log(`🔍 Фильтр статуса: ${lead.name} - ${lead.status_id} === ${statusId} = ${isTodayStatus}`);
+        return isTodayStatus;
+      })
       .map(lead => {
         const customFields = lead.custom_fields_values || [];
         console.log(`🔍 Обрабатываем сделку ${lead.id}:`, lead.name);
@@ -117,7 +123,7 @@ module.exports = async (req, res) => {
         console.log(`   - created_at: ${lead.created_at}`);
         console.log(`   - updated_at: ${lead.updated_at}`);
         console.log(`   - closed_at: ${lead.closed_at}`);
-        console.log(`   - status_id: ${lead.status_id} (${lead.name} - НУЖНО НАЙТИ СТАТУС "СЕГОДНЯ")`);
+        console.log(`   - status_id: ${lead.status_id} (${lead.name} - ИЩЕМ СТАТУС ${statusId})`);
         console.log(`   - pipeline_id: ${lead.pipeline_id}`);
         
         console.log(`📅 Сырые данные даты для ${lead.id}:`, datetime, `(тип: ${typeof datetime})`);
