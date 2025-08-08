@@ -50,7 +50,7 @@ module.exports = async (req, res) => {
     }
     console.log(`🎯 Используем pipeline_id: ${pipelineId} и status_id: ${statusId} для филиала ${branch}`);
 
-    // Формируем URL для запроса - ВРЕМЕННО без фильтра по статусу для отладки
+    // ВРЕМЕННО: Получаем все сделки из воронки без фильтра по статусу
     const apiUrl = `https://${AMO_SUBDOMAIN}.amocrm.ru/api/v4/leads?pipeline_id=${pipelineId}`;
     console.log(`🌐 Запрос к AmoCRM: ${apiUrl}`);
 
@@ -123,7 +123,7 @@ module.exports = async (req, res) => {
         console.log(`   - created_at: ${lead.created_at}`);
         console.log(`   - updated_at: ${lead.updated_at}`);
         console.log(`   - closed_at: ${lead.closed_at}`);
-        console.log(`   - status_id: ${lead.status_id} (${lead.name} - ИЩЕМ СТАТУС ${statusId})`);
+        console.log(`   - status_id: ${lead.status_id} (${lead.name} - НУЖНО НАЙТИ СТАТУС "СЕГОДНЯ")`);
         console.log(`   - pipeline_id: ${lead.pipeline_id}`);
         
         console.log(`📅 Сырые данные даты для ${lead.id}:`, datetime, `(тип: ${typeof datetime})`);
