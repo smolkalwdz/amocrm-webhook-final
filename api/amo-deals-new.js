@@ -84,9 +84,10 @@ module.exports = async (req, res) => {
     // Преобразуем сделки в нужный формат и фильтруем по статусу и дате
     const deals = leads
       .filter(lead => {
-        // ВРЕМЕННО: Показываем все сделки для отладки статусов
-        console.log(`🔍 Сделка ${lead.name} имеет status_id: ${lead.status_id} (нужно найти статус "сегодня")`);
-        return true; // Показываем все сделки
+        // Фильтруем только сделки в статусе "сегодня"
+        const isTodayStatus = lead.status_id.toString() === statusId;
+        console.log(`🔍 Фильтр статуса: ${lead.name} - ${lead.status_id} === ${statusId} = ${isTodayStatus}`);
+        return isTodayStatus;
       })
       .map(lead => {
         const customFields = lead.custom_fields_values || [];
@@ -185,10 +186,9 @@ module.exports = async (req, res) => {
         return deal;
       })
       .filter(deal => {
-        // ВРЕМЕННО: Показываем все сделки для отладки
-        const isToday = deal.bookingDate === todayString;
-        console.log(`🔍 Фильтр даты: ${deal.name} - ${deal.bookingDate} === ${todayString} = ${isToday}`);
-        return true; // Показываем все сделки
+        // Показываем все сделки из колонки "сегодня" (фильтрация уже по статусу)
+        console.log(`✅ Сделка из колонки "сегодня": ${deal.name} на ${deal.bookingDate} в ${deal.time}`);
+        return true;
       });
 
     console.log(`✅ Обработано ${deals.length} сделок на сегодня (${todayString})`);
