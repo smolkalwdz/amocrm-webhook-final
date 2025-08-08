@@ -98,8 +98,13 @@ module.exports = async (req, res) => {
           return value;
         };
 
-        // Извлекаем дату и время из поля "Дата и время брони"
-        const datetime = getFieldValue('Дата и время брони');
+        // Ищем поле с датой брони (пробуем разные варианты названий)
+        let datetime = getFieldValue('Дата и время брони');
+        if (!datetime) datetime = getFieldValue('Дата брони');
+        if (!datetime) datetime = getFieldValue('Время брони');
+        if (!datetime) datetime = getFieldValue('Дата');
+        if (!datetime) datetime = getFieldValue('Время');
+        
         console.log(`📅 Сырые данные даты для ${lead.id}:`, datetime, `(тип: ${typeof datetime})`);
         
         let time = '19:00';
@@ -160,15 +165,18 @@ module.exports = async (req, res) => {
         return deal;
       })
       .filter(deal => {
-        // ВРЕМЕННО: Показываем все сделки для тестирования
-        console.log(`🔍 Сделка: ${deal.name} - ${deal.bookingDate} (сегодня: ${todayString})`);
-        return true; // Показываем все сделки
+        // Фильтруем только сделки на сегодня
+        const isToday = deal.bookingDate === todayString;
+        console.log(`🔍 Фильтр даты: ${deal.name} - ${deal.bookingDate} === ${todayString} = ${isToday}`);
+        return isToday;
       });
 
-    console.log(`✅ Обработано ${deals.length} сделок (показываем все для тестирования)`);
-    console.log(`📊 Первые 5 сделок:`, deals.slice(0, 5).map(d => `${d.name} (${d.bookingDate})`));
-
     console.log(`✅ Обработано ${deals.length} сделок на сегодня (${todayString})`);
+    if (deals.length > 0) {
+      console.log(`📊 Сделки на сегодня:`, deals.map(d => `${d.name} (${d.bookingDate} ${d.time})`));
+    } else {
+      console.log(`⚠️ Нет сделок на сегодня (${todayString})`);
+    }
 
     res.status(200).json({
       success: true,
