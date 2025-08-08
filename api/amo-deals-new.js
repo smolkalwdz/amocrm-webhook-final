@@ -79,15 +79,18 @@ module.exports = async (req, res) => {
       .map(lead => {
         const customFields = lead.custom_fields || [];
         console.log(`🔍 Обрабатываем сделку ${lead.id}:`, lead.name);
+        console.log(`📋 Все поля сделки ${lead.id}:`, customFields.map(f => `${f.name}: ${f.values[0]?.value}`));
         
         const getFieldValue = (fieldName) => {
           const field = customFields.find(f => f.name === fieldName);
-          return field ? field.values[0].value : '';
+          const value = field ? field.values[0].value : '';
+          console.log(`🔍 Поле "${fieldName}" для ${lead.id}:`, value);
+          return value;
         };
 
         // Извлекаем дату и время из поля "Дата и время брони"
         const datetime = getFieldValue('Дата и время брони');
-        console.log(`📅 Дата и время брони для ${lead.id}: ${datetime}`);
+        console.log(`📅 Сырые данные даты для ${lead.id}:`, datetime, `(тип: ${typeof datetime})`);
         
         let time = '19:00';
         let bookingDate = null;
@@ -100,22 +103,31 @@ module.exports = async (req, res) => {
               time = date.toTimeString().slice(0, 5);
               bookingDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
               console.log(`✅ Парсинг Unix timestamp: ${datetime} -> ${bookingDate} ${time}`);
-            } else if (datetime.includes(' ')) {
-              // Если это строка "DD.MM.YYYY HH:MM"
-              const parts = datetime.split(' ');
-              if (parts.length >= 2) {
-                time = parts[1].substring(0, 5);
-                const datePart = parts[0];
-                if (datePart.includes('.')) {
-                  const [day, month, year] = datePart.split('.');
-                  bookingDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-                  console.log(`✅ Парсинг строки даты: ${datetime} -> ${bookingDate} ${time}`);
+            } else if (typeof datetime === 'string') {
+              if (datetime.includes(' ')) {
+                // Если это строка "DD.MM.YYYY HH:MM"
+                const parts = datetime.split(' ');
+                if (parts.length >= 2) {
+                  time = parts[1].substring(0, 5);
+                  const datePart = parts[0];
+                  if (datePart.includes('.')) {
+                    const [day, month, year] = datePart.split('.');
+                    bookingDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                    console.log(`✅ Парсинг строки даты: ${datetime} -> ${bookingDate} ${time}`);
+                  }
                 }
+              } else if (datetime.includes('.')) {
+                // Только дата без времени
+                const [day, month, year] = datetime.split('.');
+                bookingDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                console.log(`✅ Парсинг только даты: ${datetime} -> ${bookingDate}`);
               }
             }
           } catch (e) {
             console.error('❌ Ошибка парсинга времени:', e);
           }
+        } else {
+          console.log(`⚠️ Поле "Дата и время брони" пустое для сделки ${lead.id}`);
         }
 
         const deal = {
