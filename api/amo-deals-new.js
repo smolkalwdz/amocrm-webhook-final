@@ -77,23 +77,22 @@ module.exports = async (req, res) => {
     // Преобразуем сделки в нужный формат и фильтруем по дате
     const deals = leads
       .map(lead => {
-        const customFields = lead.custom_fields || [];
+        const customFields = lead.custom_fields_values || [];
         console.log(`🔍 Обрабатываем сделку ${lead.id}:`, lead.name);
-        console.log(`📋 Все поля сделки ${lead.id}:`, customFields.map(f => `${f.name}: ${f.values[0]?.value}`));
-        console.log(`🔍 ВСЕ данные сделки ${lead.id}:`, JSON.stringify(lead, null, 2));
+        console.log(`📋 Все поля сделки ${lead.id}:`, customFields.map(f => `${f.field_name}: ${f.values[0]?.value}`));
         
         // Ищем поле с датой брони
         const dateField = customFields.find(f => 
-          f.name.toLowerCase().includes('дата') || 
-          f.name.toLowerCase().includes('брони') ||
-          f.name.toLowerCase().includes('время')
+          f.field_name.toLowerCase().includes('дата') || 
+          f.field_name.toLowerCase().includes('брони') ||
+          f.field_name.toLowerCase().includes('время')
         );
         if (dateField) {
-          console.log(`🎯 Найдено поле с датой: "${dateField.name}" = ${dateField.values[0]?.value}`);
+          console.log(`🎯 Найдено поле с датой: "${dateField.field_name}" = ${dateField.values[0]?.value}`);
         }
         
         const getFieldValue = (fieldName) => {
-          const field = customFields.find(f => f.name === fieldName);
+          const field = customFields.find(f => f.field_name === fieldName);
           const value = field ? field.values[0].value : '';
           console.log(`🔍 Поле "${fieldName}" для ${lead.id}:`, value);
           return value;
