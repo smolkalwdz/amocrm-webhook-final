@@ -1,5 +1,5 @@
-// НОВЫЙ Vercel Serverless Function для получения сделок из AmoCRM
-// БЕЗ ФИЛЬТРА ПО ДАТЕ - ПОКАЗЫВАЕМ ВСЕ СДЕЛКИ
+// Vercel Serverless Function для получения сделок из AmoCRM
+// ПОКАЗЫВАЕМ ТОЛЬКО БРОНИ НА СЕГОДНЯ
 module.exports = async (req, res) => {
   // Динамический импорт node-fetch
   const fetch = (await import('node-fetch')).default;
@@ -27,7 +27,7 @@ module.exports = async (req, res) => {
 
   try {
     const { branch } = req.query; // Получаем филиал из параметров
-    console.log(`�� НОВЫЙ ФАЙЛ: Запрос сделок для филиала: ${branch}`);
+    console.log(`🔍 Запрос сделок для филиала: ${branch}`);
 
     if (!AMO_ACCESS_TOKEN) {
       console.error('❌ AMO_ACCESS_TOKEN не настроен');
@@ -64,94 +64,108 @@ module.exports = async (req, res) => {
     }
 
     const data = await response.json();
-    console.log(`�� Получены данные от AmoCRM:`, JSON.stringify(data, null, 2));
+    console.log(`📊 Получены данные от AmoCRM:`, JSON.stringify(data, null, 2));
     
     const leads = data._embedded?.leads || [];
     console.log(`📊 Получено ${leads.length} сделок из AmoCRM для филиала ${branch}`);
 
-    // Преобразуем сделки в нужный формат (БЕЗ ФИЛЬТРАЦИИ ПО ДАТЕ)
-    const deals = leads.map(lead => {
-      const customFields = lead.custom_fields || [];
-      console.log(`🔍 Обрабатываем сделку ${lead.id}:`, lead.name);
-      
-      const getFieldValue = (fieldName) => {
-        const field = customFields.find(f => f.name === fieldName);
-        return field ? field.values[0].value : '';
-      };
+    // Получаем сегодняшнюю дату
+    const today = new Date();
+    const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    console.log(`📅 Сегодняшняя дата: ${todayString}`);
 
-      // Извлекаем дату и время из поля "Дата и время брони"
-      const datetime = getFieldValue('Дата и время брони');
-      console.log(`�� Дата и время брони для ${lead.id}: ${datetime}`);
-      
-      let time = '19:00';
-      let bookingDate = null;
-      
-      if (datetime) {
-        try {
-          if (typeof datetime === 'number' || !isNaN(datetime)) {
-            const date = new Date(parseInt(datetime) * 1000);
-            time = date.toTimeString().slice(0, 5);
-            bookingDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
-            console.log(`✅ Парсинг Unix timestamp: ${datetime} -> ${bookingDate} ${time}`);
-          } else if (datetime.includes(' ')) {
-            const parts = datetime.split(' ');
-            if (parts.length >= 2) {
-              time = parts[1].substring(0, 5);
-              // Пытаемся извлечь дату из строки
-              const datePart = parts[0];
-              if (datePart.includes('.')) {
-                const [day, month, year] = datePart.split('.');
-                bookingDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-                console.log(`✅ Парсинг строки даты: ${datetime} -> ${bookingDate} ${time}`);
+    // Преобразуем сделки в нужный формат и фильтруем по дате
+    const deals = leads
+      .map(lead => {
+        const customFields = lead.custom_fields || [];
+        console.log(`🔍 Обрабатываем сделку ${lead.id}:`, lead.name);
+        
+        const getFieldValue = (fieldName) => {
+          const field = customFields.find(f => f.name === fieldName);
+          return field ? field.values[0].value : '';
+        };
+
+        // Извлекаем дату и время из поля "Дата и время брони"
+        const datetime = getFieldValue('Дата и время брони');
+        console.log(`📅 Дата и время брони для ${lead.id}: ${datetime}`);
+        
+        let time = '19:00';
+        let bookingDate = null;
+        
+        if (datetime) {
+          try {
+            if (typeof datetime === 'number' || !isNaN(datetime)) {
+              // Если это Unix timestamp
+              const date = new Date(parseInt(datetime) * 1000);
+              time = date.toTimeString().slice(0, 5);
+              bookingDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
+              console.log(`✅ Парсинг Unix timestamp: ${datetime} -> ${bookingDate} ${time}`);
+            } else if (datetime.includes(' ')) {
+              // Если это строка "DD.MM.YYYY HH:MM"
+              const parts = datetime.split(' ');
+              if (parts.length >= 2) {
+                time = parts[1].substring(0, 5);
+                const datePart = parts[0];
+                if (datePart.includes('.')) {
+                  const [day, month, year] = datePart.split('.');
+                  bookingDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                  console.log(`✅ Парсинг строки даты: ${datetime} -> ${bookingDate} ${time}`);
+                }
               }
             }
+          } catch (e) {
+            console.error('❌ Ошибка парсинга времени:', e);
           }
-        } catch (e) {
-          console.error('❌ Ошибка парсинга времени:', e);
         }
-      }
 
-      const deal = {
-        id: lead.id.toString(),
-        name: getFieldValue('Имя Брони') || lead.name || 'Без имени',
-        time: time,
-        guests: parseInt(getFieldValue('Кол-во гостей')) || 1,
-        phone: getFieldValue('Телефон') || '',
-        comment: getFieldValue('Коммент к брони') || '',
-        branch: branch,
-        zone: getFieldValue('Зона') || 'Зона 1',
-        hasVR: getFieldValue('VR') === 'Да',
-        hasShisha: getFieldValue('Кальян') === 'Да',
-        leadId: lead.id,
-        status: lead.status_id,
-        bookingDate: bookingDate // Добавляем дату брони
-      };
+        const deal = {
+          id: lead.id.toString(),
+          name: getFieldValue('Имя Брони') || lead.name || 'Без имени',
+          time: time,
+          guests: parseInt(getFieldValue('Кол-во гостей')) || 1,
+          phone: getFieldValue('Телефон') || '',
+          comment: getFieldValue('Коммент к брони') || '',
+          branch: branch,
+          zone: getFieldValue('Зона') || 'Зона 1',
+          hasVR: getFieldValue('VR') === 'Да',
+          hasShisha: getFieldValue('Кальян') === 'Да',
+          leadId: lead.id,
+          status: lead.status_id,
+          bookingDate: bookingDate // Добавляем дату брони
+        };
 
-      console.log(`�� Создана сделка: ${deal.name} на ${deal.bookingDate} в ${deal.time}`);
-      return deal;
-    });
+        console.log(`📋 Создана сделка: ${deal.name} на ${deal.bookingDate} в ${deal.time}`);
+        return deal;
+      })
+      .filter(deal => {
+        // Фильтруем только сделки на сегодня
+        const isToday = deal.bookingDate === todayString;
+        console.log(`🔍 Фильтр даты: ${deal.name} - ${deal.bookingDate} === ${todayString} = ${isToday}`);
+        return isToday;
+      });
 
-    // ВАЖНО: НЕТ ФИЛЬТРА ПО ДАТЕ - ПОКАЗЫВАЕМ ВСЕ СДЕЛКИ
-    console.log(`✅ НОВЫЙ ФАЙЛ: Обработано ${deals.length} сделок (ВСЕ доступные, БЕЗ фильтра по дате)`);
+    console.log(`✅ Обработано ${deals.length} сделок на сегодня (${todayString})`);
 
     res.status(200).json({
       success: true,
       deals: deals,
       timestamp: new Date().toISOString(),
+      today: todayString,
       totalLeads: leads.length,
-      processedDeals: deals.length,
-      note: "НОВЫЙ ФАЙЛ: Показываются ВСЕ сделки без фильтрации по дате",
-      source: "amo-deals-new.js"
+      filteredDeals: deals.length
     });
 
   } catch (error) {
     console.error('❌ Ошибка получения сделок из AmoCRM:', error.message);
     
-    // Возвращаем тестовые данные в случае ошибки
+    // Возвращаем тестовые данные в случае ошибки (только на сегодня)
+    const today = new Date();
+    const todayString = today.toISOString().split('T')[0];
+    
     const mockDeals = [
       {
         id: '1',
-        name: 'Иван Петров (НОВЫЙ ФАЙЛ)',
+        name: 'Иван Петров (Тест)',
         time: '19:00',
         guests: 4,
         phone: '+7 (999) 123-45-67',
@@ -162,11 +176,11 @@ module.exports = async (req, res) => {
         hasShisha: false,
         leadId: '1',
         status: '47000707',
-        bookingDate: '2025-08-08'
+        bookingDate: todayString
       },
       {
         id: '2',
-        name: 'Мария Сидорова (НОВЫЙ ФАЙЛ)',
+        name: 'Мария Сидорова (Тест)',
         time: '20:30',
         guests: 2,
         phone: '+7 (999) 234-56-78',
@@ -177,18 +191,18 @@ module.exports = async (req, res) => {
         hasShisha: true,
         leadId: '2',
         status: '47000707',
-        bookingDate: '2025-08-09'
+        bookingDate: todayString
       }
     ].filter(deal => deal.branch === (branch || 'МСК'));
 
-    console.log(`�� НОВЫЙ ФАЙЛ: Возвращаем тестовые данные: ${mockDeals.length} сделок`);
+    console.log(`🔄 Возвращаем тестовые данные: ${mockDeals.length} сделок`);
 
     res.status(200).json({
       success: false,
       error: error.message,
       deals: mockDeals,
       timestamp: new Date().toISOString(),
-      source: "amo-deals-new.js",
+      today: todayString,
       debug: {
         tokenConfigured: !!process.env.AMO_ACCESS_TOKEN,
         tokenLength: process.env.AMO_ACCESS_TOKEN ? process.env.AMO_ACCESS_TOKEN.length : 0,
@@ -197,4 +211,4 @@ module.exports = async (req, res) => {
       }
     });
   }
-};
+}; 
