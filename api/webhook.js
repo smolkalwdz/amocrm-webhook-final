@@ -6,7 +6,7 @@ module.exports = async (req, res) => {
   // URL вашей канбан-доски
   const KANBAN_API_URL = 'https://smolkalwdz-kanban-backend-3d00.twc1.net';
 
-  // Функция извлечения времени из даты
+  // Функция извлечения времени из даты (только время, без даты)
   function extractTimeFromDateTime(datetime) {
     if (!datetime) return '19:00';
     
@@ -105,7 +105,7 @@ module.exports = async (req, res) => {
         return field ? field.values[0].value : '';
       };
       
-      // Извлекаем время из поля "Дата и время брони"
+      // Извлекаем время из поля "Дата и время брони" (только время)
       const datetime = getFieldValue('Дата и время брони');
       const time = extractTimeFromDateTime(datetime);
       console.log('⏰ Время из timestamp:', datetime, '→', time);
@@ -116,12 +116,15 @@ module.exports = async (req, res) => {
                      branchName.includes('Полевая') ? 'Полевая' : 'МСК';
       console.log('🏢 Филиал:', branchName, '→', branch);
       
+      // Получаем телефон из контакта или кастомного поля
+      const phone = contact ? contact.phone : getFieldValue('Телефон') || '';
+      
       // Преобразуем данные
       const bookingData = {
         name: getFieldValue('Имя Брони') || contact?.name || lead.name || 'Без имени',
-        time: time,
+        time: time, // Только время, без даты
         guests: parseInt(getFieldValue('Кол-во гостей')) || 1,
-        phone: contact ? contact.phone : '',
+        phone: phone, // Добавляем телефон
         source: 'AmoCRM',
         tableId: parseZoneToTableId(getFieldValue('Зона'), branch),
         branch: branch,
