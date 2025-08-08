@@ -39,13 +39,19 @@ module.exports = async (req, res) => {
 
     console.log(`✅ Токен найден: ${AMO_ACCESS_TOKEN.substring(0, 20)}...`);
 
-    // Определяем pipeline_id в зависимости от филиала
-    const pipelineId = branch === 'Полевая' ? '5096621' : '5096620'; // Замените на ваши ID воронок
-    console.log(`🎯 Используем pipeline_id: ${pipelineId} для филиала ${branch}`);
+    // Определяем pipeline_id и status_id в зависимости от филиала
+    let pipelineId, statusId;
+    if (branch === 'Полевая') {
+      pipelineId = '5998579'; // Полевая 72
+      statusId = '52167655'; // Сегодня
+    } else if (branch === 'МСК') {
+      pipelineId = '5096620'; // Московское ш. 43
+      statusId = '45762658'; // сегодня
+    }
+    console.log(`🎯 Используем pipeline_id: ${pipelineId} и status_id: ${statusId} для филиала ${branch}`);
 
-    // Формируем URL для запроса
-    // ВРЕМЕННО: Получаем все сделки из воронки МСК без фильтра по статусу
-    const apiUrl = `https://${AMO_SUBDOMAIN}.amocrm.ru/api/v4/leads?pipeline_id=${pipelineId}`;
+    // Формируем URL для запроса с фильтром по статусу "сегодня"
+    const apiUrl = `https://${AMO_SUBDOMAIN}.amocrm.ru/api/v4/leads?pipeline_id=${pipelineId}&status[]=${statusId}`;
     console.log(`🌐 Запрос к AmoCRM: ${apiUrl}`);
 
     // Получаем сделки из AmoCRM
