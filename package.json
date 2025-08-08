@@ -1,0 +1,8 @@
+{
+  "name": "integramocrm",
+  "version": "1.0.0",
+  "description": "AmoCRM webhook integration for Kanban board",
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
