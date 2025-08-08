@@ -111,7 +111,7 @@ module.exports = async (req, res) => {
         console.log(`   - created_at: ${lead.created_at}`);
         console.log(`   - updated_at: ${lead.updated_at}`);
         console.log(`   - closed_at: ${lead.closed_at}`);
-        console.log(`   - status_id: ${lead.status_id}`);
+        console.log(`   - status_id: ${lead.status_id} (${lead.name} - НУЖНО НАЙТИ СТАТУС "СЕГОДНЯ")`);
         console.log(`   - pipeline_id: ${lead.pipeline_id}`);
         
         console.log(`📅 Сырые данные даты для ${lead.id}:`, datetime, `(тип: ${typeof datetime})`);
