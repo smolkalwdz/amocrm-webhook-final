@@ -1,33 +1,30 @@
 // Vercel Serverless Function для получения сделок из AmoCRM
-// ПОКАЗЫВАЕМ ТОЛЬКО БРОНИ НА СЕГОДНЯ
 module.exports = async (req, res) => {
   // Динамический импорт node-fetch
   const fetch = (await import('node-fetch')).default;
 
   // Настройки AmoCRM
-  const AMO_SUBDOMAIN = 'dungeonbron'; // Ваш поддомен AmoCRM
-  const AMO_ACCESS_TOKEN = process.env.AMO_ACCESS_TOKEN; // Токен доступа к AmoCRM
+  const AMO_SUBDOMAIN = 'dungeonbron';
+  const AMO_ACCESS_TOKEN = process.env.AMO_ACCESS_TOKEN;
 
   // Включаем CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Обрабатываем OPTIONS запросы
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
   }
 
-  // Только GET запросы
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
   }
 
   try {
-    const { branch } = req.query; // Получаем филиал из параметров
-    console.log(`🔍 Запрос сделок для филиала: ${branch}`);
+    const { branch, status } = req.query; // Получаем филиал и статус из параметров
+    console.log(`🔍 Запрос сделок для филиала: ${branch}, статус: ${status || 'по умолчанию'}`);
 
     if (!AMO_ACCESS_TOKEN) {
       console.error('❌ AMO_ACCESS_TOKEN не настроен');
@@ -46,7 +43,16 @@ module.exports = async (req, res) => {
       statusId = '52167655'; // Сегодня
     } else if (branch === 'МСК') {
       pipelineId = '5096620'; // Московское ш. 43
-      statusId = '45762658'; // сегодня
+      
+      // Позволяем переопределить статус через параметр
+      if (status) {
+        statusId = status;
+        console.log(`🎯 Используем переопределенный status_id: ${statusId}`);
+      } else {
+        // ВРЕМЕННО: используем "Заявки на бронь" вместо "сегодня" для демонстрации
+        statusId = '47000707'; // Заявки на бронь (вместо 45762658 - сегодня)
+        console.log(`📝 ВНИМАНИЕ: Для МСК временно показываем сделки из статуса "Заявки на бронь" вместо "сегодня"`);
+      }
     }
     console.log(`🎯 Используем pipeline_id: ${pipelineId} и status_id: ${statusId} для филиала ${branch}`);
 
@@ -84,10 +90,10 @@ module.exports = async (req, res) => {
     // Преобразуем сделки в нужный формат и фильтруем по статусу и дате
     const deals = leads
       .filter(lead => {
-        // Фильтруем только сделки в статусе "сегодня"
-        const isTodayStatus = lead.status_id.toString() === statusId;
-        console.log(`🔍 Фильтр статуса: ${lead.name} - ${lead.status_id} === ${statusId} = ${isTodayStatus}`);
-        return isTodayStatus;
+        // Фильтруем только сделки в нужном статусе
+        const isCorrectStatus = lead.status_id.toString() === statusId;
+        console.log(`🔍 Фильтр статуса: ${lead.name} - ${lead.status_id} === ${statusId} = ${isCorrectStatus}`);
+        return isCorrectStatus;
       })
       .map(lead => {
         const customFields = lead.custom_fields_values || [];
@@ -123,7 +129,7 @@ module.exports = async (req, res) => {
         console.log(`   - created_at: ${lead.created_at}`);
         console.log(`   - updated_at: ${lead.updated_at}`);
         console.log(`   - closed_at: ${lead.closed_at}`);
-        console.log(`   - status_id: ${lead.status_id} (${lead.name} - НУЖНО НАЙТИ СТАТУС "СЕГОДНЯ")`);
+        console.log(`   - status_id: ${lead.status_id} (${lead.name})`);
         console.log(`   - pipeline_id: ${lead.pipeline_id}`);
         
         console.log(`📅 Сырые данные даты для ${lead.id}:`, datetime, `(тип: ${typeof datetime})`);
@@ -186,16 +192,16 @@ module.exports = async (req, res) => {
         return deal;
       })
       .filter(deal => {
-        // Показываем все сделки из колонки "сегодня" (фильтрация уже по статусу)
-        console.log(`✅ Сделка из колонки "сегодня": ${deal.name} на ${deal.bookingDate} в ${deal.time}`);
+        // Показываем все сделки из выбранного статуса
+        console.log(`✅ Сделка из выбранного статуса: ${deal.name} на ${deal.bookingDate} в ${deal.time}`);
         return true;
       });
 
-    console.log(`✅ Обработано ${deals.length} сделок на сегодня (${todayString})`);
+    console.log(`✅ Обработано ${deals.length} сделок из статуса ${statusId}`);
     if (deals.length > 0) {
-      console.log(`📊 Сделки на сегодня:`, deals.map(d => `${d.name} (${d.bookingDate} ${d.time})`));
+      console.log(`📊 Сделки:`, deals.map(d => `${d.name} (${d.bookingDate} ${d.time})`));
     } else {
-      console.log(`⚠️ Нет сделок на сегодня (${todayString})`);
+      console.log(`⚠️ Нет сделок в статусе ${statusId}`);
     }
 
     res.status(200).json({
@@ -211,7 +217,7 @@ module.exports = async (req, res) => {
   } catch (error) {
     console.error('❌ Ошибка получения сделок из AmoCRM:', error.message);
     
-    // Возвращаем тестовые данные в случае ошибки (только на сегодня)
+    // Возвращаем тестовые данные в случае ошибки
     const today = new Date();
     const todayString = today.toISOString().split('T')[0];
     
@@ -261,8 +267,8 @@ module.exports = async (req, res) => {
         tokenConfigured: !!process.env.AMO_ACCESS_TOKEN,
         tokenLength: process.env.AMO_ACCESS_TOKEN ? process.env.AMO_ACCESS_TOKEN.length : 0,
         branch: branch,
-        pipelineId: branch === 'Полевая' ? '5096621' : '5096620'
+        pipelineId: branch === 'Полевая' ? '5998579' : '5096620'
       }
     });
   }
-}; 
+};
