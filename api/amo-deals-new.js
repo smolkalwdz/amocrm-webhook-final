@@ -27,7 +27,7 @@ module.exports = async (req, res) => {
 
   try {
     const { branch } = req.query; // Получаем филиал из параметров
-    console.log(`🔍 НОВЫЙ ФАЙЛ: Запрос сделок для филиала: ${branch}`);
+    console.log(`�� НОВЫЙ ФАЙЛ: Запрос сделок для филиала: ${branch}`);
 
     if (!AMO_ACCESS_TOKEN) {
       console.error('❌ AMO_ACCESS_TOKEN не настроен');
@@ -64,7 +64,7 @@ module.exports = async (req, res) => {
     }
 
     const data = await response.json();
-    console.log(`📊 Получены данные от AmoCRM:`, JSON.stringify(data, null, 2));
+    console.log(`�� Получены данные от AmoCRM:`, JSON.stringify(data, null, 2));
     
     const leads = data._embedded?.leads || [];
     console.log(`📊 Получено ${leads.length} сделок из AmoCRM для филиала ${branch}`);
@@ -81,7 +81,7 @@ module.exports = async (req, res) => {
 
       // Извлекаем дату и время из поля "Дата и время брони"
       const datetime = getFieldValue('Дата и время брони');
-      console.log(`📅 Дата и время брони для ${lead.id}: ${datetime}`);
+      console.log(`�� Дата и время брони для ${lead.id}: ${datetime}`);
       
       let time = '19:00';
       let bookingDate = null;
@@ -127,7 +127,7 @@ module.exports = async (req, res) => {
         bookingDate: bookingDate // Добавляем дату брони
       };
 
-      console.log(`📋 Создана сделка: ${deal.name} на ${deal.bookingDate} в ${deal.time}`);
+      console.log(`�� Создана сделка: ${deal.name} на ${deal.bookingDate} в ${deal.time}`);
       return deal;
     });
 
@@ -181,7 +181,7 @@ module.exports = async (req, res) => {
       }
     ].filter(deal => deal.branch === (branch || 'МСК'));
 
-    console.log(`🔄 НОВЫЙ ФАЙЛ: Возвращаем тестовые данные: ${mockDeals.length} сделок`);
+    console.log(`�� НОВЫЙ ФАЙЛ: Возвращаем тестовые данные: ${mockDeals.length} сделок`);
 
     res.status(200).json({
       success: false,
@@ -197,4 +197,4 @@ module.exports = async (req, res) => {
       }
     });
   }
-}; 
+};
