@@ -152,7 +152,8 @@ module.exports = async (req, res) => {
       timestamp: new Date().toISOString(),
       today: todayString,
       totalLeads: leads.length,
-      filteredDeals: deals.length
+      filteredDeals: deals.length,
+      platform: 'Vercel'
     });
 
   } catch (error) {
@@ -165,7 +166,7 @@ module.exports = async (req, res) => {
     const mockDeals = [
       {
         id: '1',
-        name: 'Иван Петров (Тест)',
+        name: 'Иван Петров (Тест Vercel)',
         time: '19:00',
         guests: 4,
         phone: '+7 (999) 123-45-67',
@@ -180,7 +181,7 @@ module.exports = async (req, res) => {
       },
       {
         id: '2',
-        name: 'Мария Сидорова (Тест)',
+        name: 'Мария Сидорова (Тест Vercel)',
         time: '20:30',
         guests: 2,
         phone: '+7 (999) 234-56-78',
@@ -203,6 +204,7 @@ module.exports = async (req, res) => {
       deals: mockDeals,
       timestamp: new Date().toISOString(),
       today: todayString,
+      platform: 'Vercel',
       debug: {
         tokenConfigured: !!process.env.AMO_ACCESS_TOKEN,
         tokenLength: process.env.AMO_ACCESS_TOKEN ? process.env.AMO_ACCESS_TOKEN.length : 0,

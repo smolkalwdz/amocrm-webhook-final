@@ -1,12 +1,13 @@
-// Простая тестовая функция для проверки AmoCRM
+// Тестовая функция для проверки AmoCRM на Vercel
 module.exports = async (req, res) => {
-  console.log('🧪 ТЕСТ: Функция test-amo вызвана');
+  console.log('🧪 ТЕСТ: Функция test-amo вызвана на Vercel');
   
   // Включаем CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
+  // Обрабатываем OPTIONS запросы
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
@@ -25,8 +26,9 @@ module.exports = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Тестовая функция работает!',
+      message: 'Тестовая функция работает на Vercel!',
       timestamp: new Date().toISOString(),
+      platform: 'Vercel',
       tokenConfigured: !!AMO_ACCESS_TOKEN,
       tokenLength: AMO_ACCESS_TOKEN ? AMO_ACCESS_TOKEN.length : 0,
       tokenPreview: AMO_ACCESS_TOKEN ? AMO_ACCESS_TOKEN.substring(0, 20) + '...' : 'Нет токена'
@@ -37,7 +39,8 @@ module.exports = async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      platform: 'Vercel'
     });
   }
 }; 
