@@ -80,6 +80,7 @@ module.exports = async (req, res) => {
         const customFields = lead.custom_fields || [];
         console.log(`🔍 Обрабатываем сделку ${lead.id}:`, lead.name);
         console.log(`📋 Все поля сделки ${lead.id}:`, customFields.map(f => `${f.name}: ${f.values[0]?.value}`));
+        console.log(`🔍 ВСЕ данные сделки ${lead.id}:`, JSON.stringify(lead, null, 2));
         
         // Ищем поле с датой брони
         const dateField = customFields.find(f => 
@@ -104,6 +105,14 @@ module.exports = async (req, res) => {
         if (!datetime) datetime = getFieldValue('Время брони');
         if (!datetime) datetime = getFieldValue('Дата');
         if (!datetime) datetime = getFieldValue('Время');
+        
+        // Проверяем стандартные поля сделки
+        console.log(`📅 Стандартные поля сделки ${lead.id}:`);
+        console.log(`   - created_at: ${lead.created_at}`);
+        console.log(`   - updated_at: ${lead.updated_at}`);
+        console.log(`   - closed_at: ${lead.closed_at}`);
+        console.log(`   - status_id: ${lead.status_id}`);
+        console.log(`   - pipeline_id: ${lead.pipeline_id}`);
         
         console.log(`📅 Сырые данные даты для ${lead.id}:`, datetime, `(тип: ${typeof datetime})`);
         
