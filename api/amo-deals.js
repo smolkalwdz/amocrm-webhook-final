@@ -1,4 +1,5 @@
 // Vercel Serverless Function для получения сделок из AmoCRM
+// ВАЖНО: Фильтр по дате УБРАН - показываются ВСЕ сделки
 module.exports = async (req, res) => {
   // Динамический импорт node-fetch
   const fetch = (await import('node-fetch')).default;
@@ -68,7 +69,7 @@ module.exports = async (req, res) => {
     const leads = data._embedded?.leads || [];
     console.log(`📊 Получено ${leads.length} сделок из AmoCRM для филиала ${branch}`);
 
-    // Преобразуем сделки в нужный формат (БЕЗ фильтрации по дате)
+    // Преобразуем сделки в нужный формат (БЕЗ фильтрации по дате - показываем ВСЕ)
     const deals = leads.map(lead => {
       const customFields = lead.custom_fields || [];
       console.log(`🔍 Обрабатываем сделку ${lead.id}:`, lead.name);
@@ -130,14 +131,16 @@ module.exports = async (req, res) => {
       return deal;
     });
 
-    console.log(`✅ Обработано ${deals.length} сделок (все доступные)`);
+    // ВАЖНО: НЕТ ФИЛЬТРА ПО ДАТЕ - показываем ВСЕ сделки
+    console.log(`✅ Обработано ${deals.length} сделок (ВСЕ доступные, без фильтра по дате)`);
 
     res.status(200).json({
       success: true,
       deals: deals,
       timestamp: new Date().toISOString(),
       totalLeads: leads.length,
-      processedDeals: deals.length
+      processedDeals: deals.length,
+      note: "Показываются ВСЕ сделки без фильтрации по дате"
     });
 
   } catch (error) {
