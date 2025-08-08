@@ -44,7 +44,8 @@ module.exports = async (req, res) => {
     console.log(`🎯 Используем pipeline_id: ${pipelineId} для филиала ${branch}`);
 
     // Формируем URL для запроса
-    const apiUrl = `https://${AMO_SUBDOMAIN}.amocrm.ru/api/v4/leads?pipeline_id=${pipelineId}&status[]=47000707`;
+    // ВРЕМЕННО: Получаем все сделки из воронки МСК без фильтра по статусу
+    const apiUrl = `https://${AMO_SUBDOMAIN}.amocrm.ru/api/v4/leads?pipeline_id=${pipelineId}`;
     console.log(`🌐 Запрос к AmoCRM: ${apiUrl}`);
 
     // Получаем сделки из AmoCRM
@@ -173,10 +174,10 @@ module.exports = async (req, res) => {
         return deal;
       })
       .filter(deal => {
-        // Фильтруем только сделки на сегодня
+        // ВРЕМЕННО: Показываем все сделки для отладки
         const isToday = deal.bookingDate === todayString;
         console.log(`🔍 Фильтр даты: ${deal.name} - ${deal.bookingDate} === ${todayString} = ${isToday}`);
-        return isToday;
+        return true; // Показываем все сделки
       });
 
     console.log(`✅ Обработано ${deals.length} сделок на сегодня (${todayString})`);
