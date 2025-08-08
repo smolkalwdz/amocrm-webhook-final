@@ -138,10 +138,9 @@ module.exports = async (req, res) => {
         return deal;
       })
       .filter(deal => {
-        // Фильтруем только сделки на сегодня
-        const isToday = deal.bookingDate === todayString;
-        console.log(`🔍 Фильтр даты: ${deal.name} - ${deal.bookingDate} === ${todayString} = ${isToday}`);
-        return isToday;
+        // ВРЕМЕННО: Показываем все сделки для тестирования
+        console.log(`🔍 Сделка: ${deal.name} - ${deal.bookingDate} (сегодня: ${todayString})`);
+        return true; // Показываем все сделки
       });
 
     console.log(`✅ Обработано ${deals.length} сделок на сегодня (${todayString})`);
