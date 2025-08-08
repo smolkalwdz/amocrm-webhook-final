@@ -160,13 +160,13 @@ module.exports = async (req, res) => {
           guests: parseInt(getFieldValue('Кол-во гостей')) || 1,
           phone: getFieldValue('Телефон') || '',
           comment: getFieldValue('Коммент к брони') || '',
-          branch: branch,
+          branch: getFieldValue('Филиал') || branch,
           zone: getFieldValue('Зона') || 'Зона 1',
           hasVR: getFieldValue('VR') === 'Да',
           hasShisha: getFieldValue('Кальян') === 'Да',
           leadId: lead.id,
           status: lead.status_id,
-          bookingDate: bookingDate // Добавляем дату брони
+          bookingDate: bookingDate
         };
 
         console.log(`📋 Создана сделка: ${deal.name} на ${deal.bookingDate} в ${deal.time}`);
