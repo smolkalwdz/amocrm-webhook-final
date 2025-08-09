@@ -3,6 +3,18 @@ module.exports = async (req, res) => {
   // Динамический импорт node-fetch
   const fetch = (await import('node-fetch')).default;
 
+  // Импортируем конфигурацию
+  let config;
+  try {
+    config = require('./config.js');
+  } catch (error) {
+    console.error('❌ Ошибка загрузки конфигурации:', error.message);
+    return res.status(500).json({ 
+      error: 'Ошибка загрузки конфигурации',
+      deals: []
+    });
+  }
+
   // Настройки AmoCRM
   const AMO_SUBDOMAIN = 'dungeonbron';
   const AMO_ACCESS_TOKEN = process.env.AMO_ACCESS_TOKEN;
@@ -39,28 +51,43 @@ module.exports = async (req, res) => {
 
     console.log(`✅ Токен найден: ${AMO_ACCESS_TOKEN.substring(0, 20)}...`);
 
-    // Определяем pipeline_id и status_id в зависимости от филиала
-    let pipelineId, statusId;
-    if (branch === 'Полевая') {
-      pipelineId = '5998579'; // Полевая 72
-      statusId = '52167655'; // Сегодня
-    } else if (branch === 'МСК') {
-      pipelineId = '5096620'; // Московское ш. 43
-      
-      // Позволяем переопределить статус через параметр
-      if (status) {
-        statusId = status;
-        console.log(`🎯 Используем переопределенный status_id: ${statusId}`);
-      } else {
-        // Используем статус "сегодня" для МСК
-        statusId = '45762658'; // Сегодня
-        console.log(`📝 Для МСК показываем сделки из статуса "сегодня" (45762658)`);
-      }
+    // Проверяем, что филиал указан
+    if (!branch) {
+      console.error('❌ Не указан параметр branch');
+      return res.status(400).json({ 
+        error: 'Необходимо указать параметр branch (МСК или Полевая)',
+        deals: []
+      });
     }
+
+    // Получаем конфигурацию для филиала
+    const branchConfig = config.branches[branch];
+    if (!branchConfig) {
+      console.error(`❌ Неизвестный филиал: ${branch}`);
+      return res.status(400).json({ 
+        error: `Неизвестный филиал: ${branch}. Доступные: ${Object.keys(config.branches).join(', ')}`,
+        deals: []
+      });
+    }
+
+    // Определяем pipeline_id и status_id из конфигурации
+    const pipelineId = branchConfig.pipelineId;
+    let statusId;
+    
+    if (status) {
+      // Позволяем переопределить статус через параметр
+      statusId = status;
+      console.log(`🎯 Используем переопределенный status_id: ${statusId}`);
+    } else {
+      // Используем статус "сегодня" из конфигурации
+      statusId = branchConfig.statuses.today;
+      console.log(`📝 Для ${branch} показываем сделки из статуса "сегодня" (${statusId})`);
+    }
+
     console.log(`🎯 Используем pipeline_id: ${pipelineId} и status_id: ${statusId} для филиала ${branch}`);
 
     // Получаем ВСЕ сделки из воронки (без фильтра по статусу в URL)
-    const apiUrl = `https://${AMO_SUBDOMAIN}.amocrm.ru/api/v4/leads?pipeline_id=${pipelineId}&limit=250`;
+    const apiUrl = `https://${AMO_SUBDOMAIN}.amocrm.ru/api/v4/leads?pipeline_id=${pipelineId}&limit=${config.defaultLimit || 250}`;
     console.log(`🌐 Запрос к AmoCRM (все сделки): ${apiUrl}`);
     console.log(`🎯 Будем фильтровать по статусу ID: ${statusId} на сервере`);
 
@@ -95,14 +122,14 @@ module.exports = async (req, res) => {
     console.log(`🔍 Анализируем статусы всех полученных сделок:`);
     const statusCounts = {};
     allLeads.forEach((lead, index) => {
-      const statusId = lead.status_id.toString();
-      if (!statusCounts[statusId]) {
-        statusCounts[statusId] = 0;
+      const leadStatusId = lead.status_id.toString();
+      if (!statusCounts[leadStatusId]) {
+        statusCounts[leadStatusId] = 0;
       }
-      statusCounts[statusId]++;
+      statusCounts[leadStatusId]++;
       
       if (index < 10) { // Показываем первые 10 сделок
-        console.log(`   ${index + 1}. ${lead.name} - статус ID: ${statusId} (ожидаем: ${statusId})`);
+        console.log(`   ${index + 1}. ${lead.name} - статус ID: ${leadStatusId} (ожидаем: ${statusId})`);
       }
     });
     
@@ -129,21 +156,27 @@ module.exports = async (req, res) => {
     console.log(`✅ Отфильтровано ${filteredLeads.length} сделок из ${allLeads.length} по статусу ${statusId}`);
 
     // Специальная проверка для статуса "сегодня"
-    if (statusId === '45762658') {
+    if (statusId === branchConfig.statuses.today) {
       console.log(`🎯 СПЕЦИАЛЬНАЯ ПРОВЕРКА для статуса "сегодня":`);
-      console.log(`   - Ищем сделки со статусом ID: 45762658`);
+      console.log(`   - Ищем сделки со статусом ID: ${statusId}`);
       
       // Проверяем все сделки на предмет статуса "сегодня"
-      const todayLeads = allLeads.filter(lead => lead.status_id.toString() === '45762658');
-      console.log(`   - Найдено сделок со статусом 45762658: ${todayLeads.length}`);
+      const todayLeads = allLeads.filter(lead => lead.status_id.toString() === statusId);
+      console.log(`   - Найдено сделок со статусом ${statusId}: ${todayLeads.length}`);
       
       if (todayLeads.length === 0) {
-        console.log(`   ⚠️ Сделки со статусом 45762658 НЕ НАЙДЕНЫ!`);
+        console.log(`   ⚠️ Сделки со статусом ${statusId} НЕ НАЙДЕНЫ!`);
         console.log(`   🔍 Проверяем все доступные статусы:`);
         const allStatuses = [...new Set(allLeads.map(lead => lead.status_id))];
         allStatuses.forEach(statusId => {
           const count = allLeads.filter(lead => lead.status_id.toString() === statusId.toString()).length;
           console.log(`     - Статус ${statusId}: ${count} сделок`);
+        });
+        
+        // Показываем доступные статусы из конфигурации
+        console.log(`   📋 Доступные статусы для ${branch} из конфигурации:`);
+        Object.entries(branchConfig.statuses).forEach(([statusType, statusId]) => {
+          console.log(`     - ${statusType}: ${statusId}`);
         });
       } else {
         console.log(`   ✅ Найдены сделки в статусе "сегодня":`);
@@ -279,7 +312,12 @@ module.exports = async (req, res) => {
         apiUrl: apiUrl,
         totalLeadsReceived: allLeads.length,
         statusDistribution: statusCounts,
-        filteringApplied: true
+        filteringApplied: true,
+        branchConfig: {
+          branch: branch,
+          pipelineId: pipelineId,
+          statuses: branchConfig.statuses
+        }
       }
     });
 
@@ -336,7 +374,8 @@ module.exports = async (req, res) => {
         tokenConfigured: !!process.env.AMO_ACCESS_TOKEN,
         tokenLength: process.env.AMO_ACCESS_TOKEN ? process.env.AMO_ACCESS_TOKEN.length : 0,
         branch: branch,
-        pipelineId: branch === 'Полевая' ? '5998579' : '5096620'
+        configLoaded: !!config,
+        availableBranches: config ? Object.keys(config.branches) : []
       }
     });
   }
