@@ -59,10 +59,10 @@ module.exports = async (req, res) => {
     }
     console.log(`🎯 Используем pipeline_id: ${pipelineId} и status_id: ${statusId} для филиала ${branch}`);
 
-    // Получаем сделки из AmoCRM с фильтрацией по статусу
-    const apiUrl = `https://${AMO_SUBDOMAIN}.amocrm.ru/api/v4/leads?pipeline_id=${pipelineId}&status_id=${statusId}`;
-    console.log(`🌐 Запрос к AmoCRM с фильтром по статусу: ${apiUrl}`);
-    console.log(`🎯 Ищем сделки в статусе ID: ${statusId}`);
+    // Получаем ВСЕ сделки из воронки (без фильтра по статусу в URL)
+    const apiUrl = `https://${AMO_SUBDOMAIN}.amocrm.ru/api/v4/leads?pipeline_id=${pipelineId}&limit=250`;
+    console.log(`🌐 Запрос к AmoCRM (все сделки): ${apiUrl}`);
+    console.log(`🎯 Будем фильтровать по статусу ID: ${statusId} на сервере`);
 
     // Получаем сделки из AmoCRM
     const response = await fetch(apiUrl, {
@@ -83,24 +83,47 @@ module.exports = async (req, res) => {
     const data = await response.json();
     console.log(`📊 Получены данные от AmoCRM:`, JSON.stringify(data, null, 2));
     
-    const leads = data._embedded?.leads || [];
-    console.log(`📊 Получено ${leads.length} сделок из AmoCRM для филиала ${branch} в статусе ${statusId}`);
+    const allLeads = data._embedded?.leads || [];
+    console.log(`📊 Получено ${allLeads.length} сделок из AmoCRM для филиала ${branch}`);
 
     // Получаем сегодняшнюю дату
     const today = new Date();
     const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD
     console.log(`📅 Сегодняшняя дата: ${todayString}`);
 
-    // Проверяем, что все полученные сделки действительно в нужном статусе
-    console.log(`🔍 Проверяем статусы полученных сделок:`);
-    leads.forEach((lead, index) => {
-      console.log(`   ${index + 1}. ${lead.name} - статус ID: ${lead.status_id} (ожидаем: ${statusId})`);
+    // Анализируем статусы всех полученных сделок
+    console.log(`🔍 Анализируем статусы всех полученных сделок:`);
+    const statusCounts = {};
+    allLeads.forEach((lead, index) => {
+      const statusId = lead.status_id.toString();
+      if (!statusCounts[statusId]) {
+        statusCounts[statusId] = 0;
+      }
+      statusCounts[statusId]++;
+      
+      if (index < 10) { // Показываем первые 10 сделок
+        console.log(`   ${index + 1}. ${lead.name} - статус ID: ${statusId} (ожидаем: ${statusId})`);
+      }
+    });
+    
+    console.log(`📊 Распределение по статусам:`, statusCounts);
+
+    // Фильтруем сделки по нужному статусу
+    console.log(`🔍 Фильтруем сделки по статусу ${statusId}...`);
+    const filteredLeads = allLeads.filter(lead => {
+      const isCorrectStatus = lead.status_id.toString() === statusId;
+      if (isCorrectStatus) {
+        console.log(`✅ Найдена сделка в нужном статусе: ${lead.name} (статус: ${lead.status_id})`);
+      }
+      return isCorrectStatus;
     });
 
-    // Преобразуем сделки в нужный формат (фильтрация уже выполнена на уровне API)
-    console.log(`🔍 Преобразуем ${leads.length} сделок в нужный формат`);
+    console.log(`✅ Отфильтровано ${filteredLeads.length} сделок из ${allLeads.length} по статусу ${statusId}`);
+
+    // Преобразуем отфильтрованные сделки в нужный формат
+    console.log(`🔍 Преобразуем ${filteredLeads.length} отфильтрованных сделок в нужный формат`);
     
-    const deals = leads.map(lead => {
+    const deals = filteredLeads.map(lead => {
         const customFields = lead.custom_fields_values || [];
         console.log(`🔍 Обрабатываем сделку ${lead.id}:`, lead.name);
         console.log(`📋 Все поля сделки ${lead.id}:`, customFields.map(f => `${f.field_name}: ${f.values[0]?.value}`));
@@ -213,14 +236,17 @@ module.exports = async (req, res) => {
       deals: deals,
       timestamp: new Date().toISOString(),
       today: todayString,
-      totalLeads: leads.length,
+      totalLeads: allLeads.length,
       filteredDeals: deals.length,
       platform: 'Vercel',
       note: `Для филиала ${branch} используется статус ${statusId}`,
       debug: {
         requestedStatusId: statusId,
         pipelineId: pipelineId,
-        apiUrl: apiUrl
+        apiUrl: apiUrl,
+        totalLeadsReceived: allLeads.length,
+        statusDistribution: statusCounts,
+        filteringApplied: true
       }
     });
 
