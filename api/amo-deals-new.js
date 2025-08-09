@@ -114,11 +114,44 @@ module.exports = async (req, res) => {
       const isCorrectStatus = lead.status_id.toString() === statusId;
       if (isCorrectStatus) {
         console.log(`✅ Найдена сделка в нужном статусе: ${lead.name} (статус: ${lead.status_id})`);
+        console.log(`   - ID сделки: ${lead.id}`);
+        console.log(`   - Название: ${lead.name}`);
+        console.log(`   - Статус: ${lead.status_id}`);
+        console.log(`   - Pipeline: ${lead.pipeline_id}`);
+        console.log(`   - Создана: ${lead.created_at}`);
+        console.log(`   - Обновлена: ${lead.updated_at}`);
+        console.log(`   - Закрыта: ${lead.closed_at || 'не закрыта'}`);
+        console.log(`   - Активна: ${!lead.closed_at ? 'ДА' : 'НЕТ'}`);
       }
       return isCorrectStatus;
     });
 
     console.log(`✅ Отфильтровано ${filteredLeads.length} сделок из ${allLeads.length} по статусу ${statusId}`);
+
+    // Специальная проверка для статуса "сегодня"
+    if (statusId === '45762658') {
+      console.log(`🎯 СПЕЦИАЛЬНАЯ ПРОВЕРКА для статуса "сегодня":`);
+      console.log(`   - Ищем сделки со статусом ID: 45762658`);
+      
+      // Проверяем все сделки на предмет статуса "сегодня"
+      const todayLeads = allLeads.filter(lead => lead.status_id.toString() === '45762658');
+      console.log(`   - Найдено сделок со статусом 45762658: ${todayLeads.length}`);
+      
+      if (todayLeads.length === 0) {
+        console.log(`   ⚠️ Сделки со статусом 45762658 НЕ НАЙДЕНЫ!`);
+        console.log(`   🔍 Проверяем все доступные статусы:`);
+        const allStatuses = [...new Set(allLeads.map(lead => lead.status_id))];
+        allStatuses.forEach(statusId => {
+          const count = allLeads.filter(lead => lead.status_id.toString() === statusId.toString()).length;
+          console.log(`     - Статус ${statusId}: ${count} сделок`);
+        });
+      } else {
+        console.log(`   ✅ Найдены сделки в статусе "сегодня":`);
+        todayLeads.forEach((lead, index) => {
+          console.log(`     ${index + 1}. ${lead.name} (ID: ${lead.id})`);
+        });
+      }
+    }
 
     // Преобразуем отфильтрованные сделки в нужный формат
     console.log(`🔍 Преобразуем ${filteredLeads.length} отфильтрованных сделок в нужный формат`);
