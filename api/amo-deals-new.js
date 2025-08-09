@@ -87,121 +87,112 @@ module.exports = async (req, res) => {
     const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD
     console.log(`📅 Сегодняшняя дата: ${todayString}`);
 
-    // Преобразуем сделки в нужный формат и фильтруем по статусу и дате
-    const deals = leads
-      .filter(lead => {
-        // Фильтруем только сделки в нужном статусе
-        const isCorrectStatus = lead.status_id.toString() === statusId;
-        console.log(`🔍 Фильтр статуса: ${lead.name} - ${lead.status_id} === ${statusId} = ${isCorrectStatus}`);
-        return isCorrectStatus;
-      })
-      .map(lead => {
-        const customFields = lead.custom_fields_values || [];
-        console.log(`🔍 Обрабатываем сделку ${lead.id}:`, lead.name);
-        console.log(`📋 Все поля сделки ${lead.id}:`, customFields.map(f => `${f.field_name}: ${f.values[0]?.value}`));
-        
-        // Ищем поле с датой брони
-        const dateField = customFields.find(f => 
-          f.field_name.toLowerCase().includes('дата') || 
-          f.field_name.toLowerCase().includes('брони') ||
-          f.field_name.toLowerCase().includes('время')
-        );
-        if (dateField) {
-          console.log(`🎯 Найдено поле с датой: "${dateField.field_name}" = ${dateField.values[0]?.value}`);
-        }
-        
-        const getFieldValue = (fieldName) => {
-          const field = customFields.find(f => f.field_name === fieldName);
-          const value = field ? field.values[0].value : '';
-          console.log(`🔍 Поле "${fieldName}" для ${lead.id}:`, value);
-          return value;
-        };
+    // ВРЕМЕННО: Показываем ВСЕ сделки из воронки для диагностики
+    console.log(`🔍 ВРЕМЕННО: Показываем ВСЕ сделки из воронки (без фильтра по статусу)`);
+    
+    // Преобразуем сделки в нужный формат
+    const deals = leads.map(lead => {
+      const customFields = lead.custom_fields_values || [];
+      console.log(`🔍 Обрабатываем сделку ${lead.id}:`, lead.name);
+      console.log(`📋 Все поля сделки ${lead.id}:`, customFields.map(f => `${f.field_name}: ${f.values[0]?.value}`));
+      
+      // Ищем поле с датой брони
+      const dateField = customFields.find(f => 
+        f.field_name.toLowerCase().includes('дата') || 
+        f.field_name.toLowerCase().includes('брони') ||
+        f.field_name.toLowerCase().includes('время')
+      );
+      if (dateField) {
+        console.log(`🎯 Найдено поле с датой: "${dateField.field_name}" = ${dateField.values[0]?.value}`);
+      }
+      
+      const getFieldValue = (fieldName) => {
+        const field = customFields.find(f => f.field_name === fieldName);
+        const value = field ? field.values[0].value : '';
+        console.log(`🔍 Поле "${fieldName}" для ${lead.id}:`, value);
+        return value;
+      };
 
-        // Ищем поле с датой брони (пробуем разные варианты названий)
-        let datetime = getFieldValue('Дата и время брони');
-        if (!datetime) datetime = getFieldValue('Дата брони');
-        if (!datetime) datetime = getFieldValue('Время брони');
-        if (!datetime) datetime = getFieldValue('Дата');
-        if (!datetime) datetime = getFieldValue('Время');
-        
-        // Проверяем стандартные поля сделки
-        console.log(`📅 Стандартные поля сделки ${lead.id}:`);
-        console.log(`   - created_at: ${lead.created_at}`);
-        console.log(`   - updated_at: ${lead.updated_at}`);
-        console.log(`   - closed_at: ${lead.closed_at}`);
-        console.log(`   - status_id: ${lead.status_id} (${lead.name})`);
-        console.log(`   - pipeline_id: ${lead.pipeline_id}`);
-        
-        console.log(`📅 Сырые данные даты для ${lead.id}:`, datetime, `(тип: ${typeof datetime})`);
-        
-        let time = '19:00';
-        let bookingDate = null;
-        
-        if (datetime) {
-          try {
-            if (typeof datetime === 'number' || !isNaN(datetime)) {
-              // Если это Unix timestamp
-              const date = new Date(parseInt(datetime) * 1000);
-              time = date.toTimeString().slice(0, 5);
-              bookingDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
-              console.log(`✅ Парсинг Unix timestamp: ${datetime} -> ${bookingDate} ${time}`);
-            } else if (typeof datetime === 'string') {
-              if (datetime.includes(' ')) {
-                // Если это строка "DD.MM.YYYY HH:MM"
-                const parts = datetime.split(' ');
-                if (parts.length >= 2) {
-                  time = parts[1].substring(0, 5);
-                  const datePart = parts[0];
-                  if (datePart.includes('.')) {
-                    const [day, month, year] = datePart.split('.');
-                    bookingDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-                    console.log(`✅ Парсинг строки даты: ${datetime} -> ${bookingDate} ${time}`);
-                  }
+      // Ищем поле с датой брони (пробуем разные варианты названий)
+      let datetime = getFieldValue('Дата и время брони');
+      if (!datetime) datetime = getFieldValue('Дата брони');
+      if (!datetime) datetime = getFieldValue('Время брони');
+      if (!datetime) datetime = getFieldValue('Дата');
+      if (!datetime) datetime = getFieldValue('Время');
+      
+      // Проверяем стандартные поля сделки
+      console.log(`📅 Стандартные поля сделки ${lead.id}:`);
+      console.log(`   - created_at: ${lead.created_at}`);
+      console.log(`   - updated_at: ${lead.updated_at}`);
+      console.log(`   - closed_at: ${lead.closed_at}`);
+      console.log(`   - status_id: ${lead.status_id} (${lead.name})`);
+      console.log(`   - pipeline_id: ${lead.pipeline_id}`);
+      
+      console.log(`📅 Сырые данные даты для ${lead.id}:`, datetime, `(тип: ${typeof datetime})`);
+      
+      let time = '19:00';
+      let bookingDate = null;
+      
+      if (datetime) {
+        try {
+          if (typeof datetime === 'number' || !isNaN(datetime)) {
+            // Если это Unix timestamp
+            const date = new Date(parseInt(datetime) * 1000);
+            time = date.toTimeString().slice(0, 5);
+            bookingDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
+            console.log(`✅ Парсинг Unix timestamp: ${datetime} -> ${bookingDate} ${time}`);
+          } else if (typeof datetime === 'string') {
+            if (datetime.includes(' ')) {
+              // Если это строка "DD.MM.YYYY HH:MM"
+              const parts = datetime.split(' ');
+              if (parts.length >= 2) {
+                time = parts[1].substring(0, 5);
+                const datePart = parts[0];
+                if (datePart.includes('.')) {
+                  const [day, month, year] = datePart.split('.');
+                  bookingDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                  console.log(`✅ Парсинг строки даты: ${datetime} -> ${bookingDate} ${time}`);
                 }
-              } else if (datetime.includes('.')) {
-                // Только дата без времени
-                const [day, month, year] = datetime.split('.');
-                bookingDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-                console.log(`✅ Парсинг только даты: ${datetime} -> ${bookingDate}`);
               }
+            } else if (datetime.includes('.')) {
+              // Только дата без времени
+              const [day, month, year] = datetime.split('.');
+              bookingDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+              console.log(`✅ Парсинг только даты: ${datetime} -> ${bookingDate}`);
             }
-          } catch (e) {
-            console.error('❌ Ошибка парсинга времени:', e);
           }
-        } else {
-          console.log(`⚠️ Поле "Дата и время брони" пустое для сделки ${lead.id}`);
+        } catch (e) {
+          console.error('❌ Ошибка парсинга времени:', e);
         }
+      } else {
+        console.log(`⚠️ Поле "Дата и время брони" пустое для сделки ${lead.id}`);
+      }
 
-        const deal = {
-          id: lead.id.toString(),
-          name: getFieldValue('Имя Брони') || lead.name || 'Без имени',
-          time: time,
-          guests: parseInt(getFieldValue('Кол-во гостей')) || 1,
-          phone: getFieldValue('Телефон') || '',
-          comment: getFieldValue('Коммент к брони') || '',
-          branch: getFieldValue('Филиал') || branch,
-          zone: getFieldValue('Зона') || 'Зона 1',
-          hasVR: getFieldValue('VR') === 'Да',
-          hasShisha: getFieldValue('Кальян') === 'Да',
-          leadId: lead.id,
-          status: lead.status_id,
-          bookingDate: bookingDate
-        };
+      const deal = {
+        id: lead.id.toString(),
+        name: getFieldValue('Имя Брони') || lead.name || 'Без имени',
+        time: time,
+        guests: parseInt(getFieldValue('Кол-во гостей')) || 1,
+        phone: getFieldValue('Телефон') || '',
+        comment: getFieldValue('Коммент к брони') || '',
+        branch: getFieldValue('Филиал') || branch,
+        zone: getFieldValue('Зона') || 'Зона 1',
+        hasVR: getFieldValue('VR') === 'Да',
+        hasShisha: getFieldValue('Кальян') === 'Да',
+        leadId: lead.id,
+        status: lead.status_id,
+        bookingDate: bookingDate
+      };
 
-        console.log(`📋 Создана сделка: ${deal.name} на ${deal.bookingDate} в ${deal.time}`);
-        return deal;
-      })
-      .filter(deal => {
-        // Показываем все сделки из выбранного статуса
-        console.log(`✅ Сделка из выбранного статуса: ${deal.name} на ${deal.bookingDate} в ${deal.time}`);
-        return true;
-      });
+      console.log(`📋 Создана сделка: ${deal.name} на ${deal.bookingDate} в ${deal.time} (статус: ${deal.status})`);
+      return deal;
+    });
 
-    console.log(`✅ Обработано ${deals.length} сделок из статуса ${statusId}`);
+    console.log(`✅ Обработано ${deals.length} сделок из воронки (все статусы)`);
     if (deals.length > 0) {
-      console.log(`📊 Сделки:`, deals.map(d => `${d.name} (${d.bookingDate} ${d.time})`));
+      console.log(`📊 Сделки:`, deals.map(d => `${d.name} (${d.bookingDate} ${d.time}, статус: ${d.status})`));
     } else {
-      console.log(`⚠️ Нет сделок в статусе ${statusId}`);
+      console.log(`⚠️ Нет сделок в воронке`);
     }
 
     res.status(200).json({
@@ -211,7 +202,8 @@ module.exports = async (req, res) => {
       today: todayString,
       totalLeads: leads.length,
       filteredDeals: deals.length,
-      platform: 'Vercel'
+      platform: 'Vercel',
+      note: 'ВРЕМЕННО: Показываем ВСЕ сделки из воронки (без фильтра по статусу) для диагностики'
     });
 
   } catch (error) {
