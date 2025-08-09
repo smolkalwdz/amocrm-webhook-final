@@ -25,6 +25,9 @@ module.exports = async (req, res) => {
   try {
     const { branch, status } = req.query; // Получаем филиал и статус из параметров
     console.log(`🔍 Запрос сделок для филиала: ${branch}, статус: ${status || 'по умолчанию'}`);
+    console.log(`🔍 Все параметры запроса:`, req.query);
+    console.log(`🔍 User-Agent:`, req.headers['user-agent']);
+    console.log(`🔍 Origin:`, req.headers['origin']);
 
     if (!AMO_ACCESS_TOKEN) {
       console.error('❌ AMO_ACCESS_TOKEN не настроен');
@@ -56,9 +59,10 @@ module.exports = async (req, res) => {
     }
     console.log(`🎯 Используем pipeline_id: ${pipelineId} и status_id: ${statusId} для филиала ${branch}`);
 
-    // ВРЕМЕННО: Получаем все сделки из воронки без фильтра по статусу
-    const apiUrl = `https://${AMO_SUBDOMAIN}.amocrm.ru/api/v4/leads?pipeline_id=${pipelineId}`;
-    console.log(`🌐 Запрос к AmoCRM: ${apiUrl}`);
+    // Получаем сделки из AmoCRM с фильтрацией по статусу
+    const apiUrl = `https://${AMO_SUBDOMAIN}.amocrm.ru/api/v4/leads?pipeline_id=${pipelineId}&status_id=${statusId}`;
+    console.log(`🌐 Запрос к AmoCRM с фильтром по статусу: ${apiUrl}`);
+    console.log(`🎯 Ищем сделки в статусе ID: ${statusId}`);
 
     // Получаем сделки из AmoCRM
     const response = await fetch(apiUrl, {
@@ -80,25 +84,23 @@ module.exports = async (req, res) => {
     console.log(`📊 Получены данные от AmoCRM:`, JSON.stringify(data, null, 2));
     
     const leads = data._embedded?.leads || [];
-    console.log(`📊 Получено ${leads.length} сделок из AmoCRM для филиала ${branch}`);
+    console.log(`📊 Получено ${leads.length} сделок из AmoCRM для филиала ${branch} в статусе ${statusId}`);
 
     // Получаем сегодняшнюю дату
     const today = new Date();
     const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD
     console.log(`📅 Сегодняшняя дата: ${todayString}`);
 
-    // Фильтруем сделки по выбранному статусу
-    console.log(`🔍 Фильтруем сделки по статусу: ${statusId}`);
+    // Проверяем, что все полученные сделки действительно в нужном статусе
+    console.log(`🔍 Проверяем статусы полученных сделок:`);
+    leads.forEach((lead, index) => {
+      console.log(`   ${index + 1}. ${lead.name} - статус ID: ${lead.status_id} (ожидаем: ${statusId})`);
+    });
+
+    // Преобразуем сделки в нужный формат (фильтрация уже выполнена на уровне API)
+    console.log(`🔍 Преобразуем ${leads.length} сделок в нужный формат`);
     
-    // Преобразуем сделки в нужный формат и фильтруем по статусу
-    const deals = leads
-      .filter(lead => {
-        // Фильтруем только сделки в нужном статусе
-        const isCorrectStatus = lead.status_id.toString() === statusId;
-        console.log(`🔍 Фильтр статуса: ${lead.name} - ${lead.status_id} === ${statusId} = ${isCorrectStatus}`);
-        return isCorrectStatus;
-      })
-      .map(lead => {
+    const deals = leads.map(lead => {
         const customFields = lead.custom_fields_values || [];
         console.log(`🔍 Обрабатываем сделку ${lead.id}:`, lead.name);
         console.log(`📋 Все поля сделки ${lead.id}:`, customFields.map(f => `${f.field_name}: ${f.values[0]?.value}`));
@@ -200,6 +202,10 @@ module.exports = async (req, res) => {
       console.log(`📊 Сделки:`, deals.map(d => `${d.name} (${d.bookingDate} ${d.time}, статус: ${d.status})`));
     } else {
       console.log(`⚠️ Нет сделок в статусе ${statusId}`);
+      console.log(`🔍 Возможные причины:`);
+      console.log(`   - Статус ID ${statusId} не существует в воронке`);
+      console.log(`   - В статусе ${statusId} нет активных сделок`);
+      console.log(`   - Проблема с правами доступа к статусу`);
     }
 
     res.status(200).json({
@@ -210,7 +216,12 @@ module.exports = async (req, res) => {
       totalLeads: leads.length,
       filteredDeals: deals.length,
       platform: 'Vercel',
-      note: `Для филиала ${branch} используется статус ${statusId}`
+      note: `Для филиала ${branch} используется статус ${statusId}`,
+      debug: {
+        requestedStatusId: statusId,
+        pipelineId: pipelineId,
+        apiUrl: apiUrl
+      }
     });
 
   } catch (error) {
